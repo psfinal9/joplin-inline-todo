@@ -62,7 +62,12 @@ export class SummaryBuilder {
 			// query on each note under the hood. If that is the case and this behaviour crushed
 			// some slow clients, I should consider reverting this back to searching all notes
 			// (with the rate limiter)
-			r = await joplin.data.get(['search'], { query: query,  fields: ['id', 'body', 'title', 'parent_id', 'is_conflict'], page: page });
+			r = await joplin.data.get(['search'], { query: query,  fields: ['id', 'body', 'title', 'parent_id', 'is_conflict'], page: page })
+					.catch((error) => {
+						console.error(error);
+						console.warn("Joplin api error while searching for: " + query + " at page: " + page);
+						return { items: [], has_more: false };
+					});
 			if (r.items) {
 				for (let note of r.items) {
 					await this.search_in_note(note);
@@ -95,7 +100,13 @@ export class SummaryBuilder {
 	// Reads a parent title from cache, or uses the joplin api to get a title based on id
 	async get_parent_title(id: string): Promise<string> {
 		if (!(id in this._folders)) {
-			let f = await joplin.data.get(['folders', id], { fields: ['title'] });
+			let unknown_folder = "Unknown Folder";
+			let f = await joplin.data.get(['folders', id], { fields: ['title'] })
+					.catch((error) => {
+						console.error(error);
+						console.warn("Could not find folder title for id: " + id);
+						return { title: unknown_folder };
+					});
 			this._folders[id] = f.title;
 		}
 
